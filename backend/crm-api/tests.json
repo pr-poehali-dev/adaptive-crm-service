@@ -1,9 +1,21 @@
 {
   "tests": [
     {
-      "name": "GET / — 404 корень",
+      "name": "GET clients — пустой массив",
       "method": "GET",
-      "path": "/",
+      "path": "/?route=/clients",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET tasks — пустой массив",
+      "method": "GET",
+      "path": "/?route=/tasks",
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET unknown — 404",
+      "method": "GET",
+      "path": "/?route=/unknown",
       "expectedStatus": 404,
       "expectedBody": {"error": "Not found"},
       "bodyMatcher": "partial"

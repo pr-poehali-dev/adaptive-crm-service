@@ -18,11 +18,11 @@ function mapClient(r: Record<string, unknown>): Client {
     product: r.product as string,
     productType: r.product_type as Client['productType'],
     orderAmount: Number(r.order_amount),
-    avitoLink: r.avito_link as string,
-    phone: r.phone as string,
-    comment: r.comment as string,
+    avitoLink: (r.avito_link as string) ?? '',
+    phone: (r.phone as string) ?? '',
+    comment: (r.comment as string) ?? '',
     status: r.status as Client['status'],
-    nextActionDate: r.next_action_date as string ?? '',
+    nextActionDate: (r.next_action_date as string) ?? '',
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
   };
@@ -32,23 +32,26 @@ function mapTask(r: Record<string, unknown>): Task {
   return {
     id: r.id as string,
     title: r.title as string,
-    clientId: r.client_id as string | undefined,
+    clientId: (r.client_id as string) || undefined,
     dueDate: r.due_date as string,
     done: r.done as boolean,
     createdAt: r.created_at as string,
   };
 }
 
-async function apiFetch(path: string, method = 'GET', body?: unknown) {
+// Все вызовы идут на корень функции, маршрут передаётся через ?route=
+async function apiFetch(route: string, method = 'GET', body?: unknown) {
+  const url = `${API}/?route=${encodeURIComponent(route)}`;
   try {
-    const res = await fetch(API + path, {
+    const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     });
-    return res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); } catch { return null; }
   } catch (e) {
-    console.error('Fetch error:', e, 'for', API + path);
+    console.error('API error:', e, route);
     return null;
   }
 }
@@ -77,6 +80,7 @@ export function useStore() {
 
   useEffect(() => { load(); }, [load]);
 
+  // --- Clients ---
   const addClient = useCallback(async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     const row = await apiFetch('/clients', 'POST', client);
     if (row?.id) {
@@ -85,15 +89,16 @@ export function useStore() {
   }, []);
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
-    // Merge with existing local state — no extra GET needed
     setState(s => {
       const existing = s.clients.find(c => c.id === id);
       if (!existing) return s;
       const merged = { ...existing, ...updates };
-      // Fire PUT in background
       apiFetch(`/clients/${id}`, 'PUT', merged).then(row => {
         if (row?.id) {
-          setState(s2 => ({ ...s2, clients: s2.clients.map(c => c.id === id ? mapClient(row) : c) }));
+          setState(s2 => ({
+            ...s2,
+            clients: s2.clients.map(c => c.id === id ? mapClient(row) : c),
+          }));
         }
       });
       return { ...s, clients: s.clients.map(c => c.id === id ? merged : c) };
@@ -101,10 +106,11 @@ export function useStore() {
   }, []);
 
   const deleteClient = useCallback(async (id: string) => {
-    await apiFetch(`/clients/${id}`, 'DELETE');
     setState(s => ({ ...s, clients: s.clients.filter(c => c.id !== id) }));
+    await apiFetch(`/clients/${id}`, 'DELETE');
   }, []);
 
+  // --- Tasks ---
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>) => {
     const row = await apiFetch('/tasks', 'POST', task);
     if (row?.id) {
@@ -113,22 +119,29 @@ export function useStore() {
   }, []);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
-    const existing = state.tasks.find(t => t.id === id);
-    if (!existing) return;
-    const merged = { ...existing, ...updates };
-    const row = await apiFetch(`/tasks/${id}`, 'PUT', merged);
-    if (row?.id) {
-      setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? mapTask(row) : t) }));
-    }
-  }, [state.tasks]);
+    setState(s => {
+      const existing = s.tasks.find(t => t.id === id);
+      if (!existing) return s;
+      const merged = { ...existing, ...updates };
+      apiFetch(`/tasks/${id}`, 'PUT', merged).then(row => {
+        if (row?.id) {
+          setState(s2 => ({
+            ...s2,
+            tasks: s2.tasks.map(t => t.id === id ? mapTask(row) : t),
+          }));
+        }
+      });
+      return { ...s, tasks: s.tasks.map(t => t.id === id ? merged : t) };
+    });
+  }, []);
 
   const deleteTask = useCallback(async (id: string) => {
-    await apiFetch(`/tasks/${id}`, 'DELETE');
     setState(s => ({ ...s, tasks: s.tasks.filter(t => t.id !== id) }));
+    await apiFetch(`/tasks/${id}`, 'DELETE');
   }, []);
 
   const updateSettings = useCallback((_updates: Partial<Settings>) => {
-    // commission is fixed
+    // commission is fixed at 5%
   }, []);
 
   return { state, load, addClient, updateClient, deleteClient, addTask, updateTask, deleteTask, updateSettings };

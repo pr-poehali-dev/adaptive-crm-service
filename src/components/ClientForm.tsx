@@ -88,9 +88,17 @@ export default function ClientForm({ client, onClose }: Props) {
           </div>
 
           <Field label="Телефон">
-            <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)}
-              placeholder="+7 999 123-45-67"
-              className="w-full bg-secondary rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all" />
+            <div className="relative">
+              <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)}
+                placeholder="+7 999 123-45-67"
+                className="w-full bg-secondary rounded-xl px-3 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all" />
+              {form.phone && (
+                <button type="button" onClick={() => navigator.clipboard.writeText(form.phone)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  <Icon name="Copy" size={14} />
+                </button>
+              )}
+            </div>
           </Field>
 
           <Field label="Ссылка на чат Авито">
@@ -108,7 +116,7 @@ export default function ClientForm({ client, onClose }: Props) {
             <textarea value={form.comment} onChange={e => set('comment', e.target.value)}
               placeholder="Заметки о клиенте..."
               rows={3}
-              className="w-full bg-secondary rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all resize-none" />
+              className="w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400/30 transition-all resize-none text-amber-900 dark:text-amber-200 placeholder:text-amber-400 dark:placeholder:text-amber-600" />
           </Field>
 
           <div className="flex gap-2 pt-1">

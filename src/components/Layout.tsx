@@ -12,7 +12,6 @@ const navItems: NavItem[] = [
   { path: '/', label: 'Главная', icon: 'LayoutDashboard' },
   { path: '/tasks', label: 'Задачи', icon: 'CheckSquare' },
   { path: '/clients', label: 'Клиенты', icon: 'Users' },
-  { path: '/kanban', label: 'Канбан', icon: 'Kanban' },
   { path: '/analytics', label: 'Аналитика', icon: 'BarChart3' },
   { path: '/settings', label: 'Настройки', icon: 'Settings' },
 ];

@@ -1,163 +1,135 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Client, Task, Settings, AppState } from './types';
+import { Client, Task, Settings } from './types';
 
-const STORAGE_KEY = 'dacha_crm_data';
+const API = 'https://functions.poehali.dev/9b14d63d-0742-4f86-8fbb-4873aad98055';
+const COMMISSION = 5;
 
-const defaultSettings: Settings = {
-  commissionPercent: 5,
-  userName: 'Менеджер',
-};
+export interface AppState {
+  clients: Client[];
+  tasks: Task[];
+  settings: Settings;
+  loading: boolean;
+}
 
-const sampleClients: Client[] = [
-  {
-    id: '1',
-    name: 'Алексей Петров',
-    product: 'Бытовка 3х6 с окном',
-    productType: 'Бытовка',
-    orderAmount: 85000,
-    avitoLink: 'https://avito.ru',
-    phone: '+7 999 123-45-67',
-    comment: 'Интересует доставка до Подольска',
-    status: 'Заинтересован',
-    nextActionDate: new Date().toISOString().split('T')[0],
-    createdAt: new Date(Date.now() - 3 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Марина Иванова',
-    product: 'Баня 4х6 из бруса',
-    productType: 'Баня',
-    orderAmount: 320000,
-    avitoLink: 'https://avito.ru',
-    phone: '+7 915 987-65-43',
-    comment: 'Готова к покупке, ждёт расчёт фундамента',
-    status: 'Заинтересован',
-    nextActionDate: new Date().toISOString().split('T')[0],
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    name: 'Дмитрий Сидоров',
-    product: 'Хозблок 2х3',
-    productType: 'Хозблок',
-    orderAmount: 55000,
-    avitoLink: 'https://avito.ru',
-    phone: '+7 926 555-12-34',
-    comment: 'Оплатил предоплату',
-    status: 'Купил',
-    nextActionDate: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
-    createdAt: new Date(Date.now() - 10 * 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Светлана Козлова',
-    product: 'Дачный домик 6х6',
-    productType: 'Дачный домик',
-    orderAmount: 480000,
-    avitoLink: 'https://avito.ru',
-    phone: '+7 903 444-88-99',
-    comment: 'Полная оплата получена',
-    status: 'Купил',
-    nextActionDate: new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0],
-    createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-    updatedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-  },
-];
+function mapClient(r: Record<string, unknown>): Client {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    product: r.product as string,
+    productType: r.product_type as Client['productType'],
+    orderAmount: Number(r.order_amount),
+    avitoLink: r.avito_link as string,
+    phone: r.phone as string,
+    comment: r.comment as string,
+    status: r.status as Client['status'],
+    nextActionDate: r.next_action_date as string ?? '',
+    createdAt: r.created_at as string,
+    updatedAt: r.updated_at as string,
+  };
+}
 
-const sampleTasks: Task[] = [
-  {
-    id: '1',
-    title: 'Отправить КП Алексею Петрову',
-    clientId: '1',
-    dueDate: new Date().toISOString().split('T')[0],
-    done: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Уточнить сроки доставки у Марины',
-    clientId: '2',
-    dueDate: new Date().toISOString().split('T')[0],
-    done: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Позвонить по новому лиду с Авито',
-    dueDate: new Date().toISOString().split('T')[0],
-    done: true,
-    createdAt: new Date().toISOString(),
-  },
-];
+function mapTask(r: Record<string, unknown>): Task {
+  return {
+    id: r.id as string,
+    title: r.title as string,
+    clientId: r.client_id as string | undefined,
+    dueDate: r.due_date as string,
+    done: r.done as boolean,
+    createdAt: r.created_at as string,
+  };
+}
 
-function loadState(): AppState {
+async function apiFetch(path: string, method = 'GET', body?: unknown) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (_e) {
-    // ignore parse errors
+    const res = await fetch(API + path, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return res.json();
+  } catch (e) {
+    console.error('Fetch error:', e, 'for', API + path);
+    return null;
   }
-  return { clients: sampleClients, tasks: sampleTasks, settings: defaultSettings };
 }
 
-function saveState(state: AppState) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
+const defaultSettings: Settings = { commissionPercent: COMMISSION, userName: '' };
 
 export function useStore() {
-  const [state, setState] = useState<AppState>(loadState);
+  const [state, setState] = useState<AppState>({
+    clients: [], tasks: [], settings: defaultSettings, loading: true,
+  });
 
-  useEffect(() => {
-    saveState(state);
-  }, [state]);
-
-  const addClient = useCallback((client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const load = useCallback(async () => {
+    setState(s => ({ ...s, loading: true }));
+    const [clients, tasks] = await Promise.all([
+      apiFetch('/clients'),
+      apiFetch('/tasks'),
+    ]);
     setState(s => ({
       ...s,
-      clients: [...s.clients, {
-        ...client,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }],
+      clients: Array.isArray(clients) ? clients.map(mapClient) : s.clients,
+      tasks: Array.isArray(tasks) ? tasks.map(mapTask) : s.tasks,
+      settings: { commissionPercent: COMMISSION, userName: '' },
+      loading: false,
     }));
   }, []);
 
-  const updateClient = useCallback((id: string, updates: Partial<Client>) => {
-    setState(s => ({
-      ...s,
-      clients: s.clients.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c),
-    }));
+  useEffect(() => { load(); }, [load]);
+
+  const addClient = useCallback(async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const row = await apiFetch('/clients', 'POST', client);
+    if (row?.id) {
+      setState(s => ({ ...s, clients: [mapClient(row), ...s.clients] }));
+    }
   }, []);
 
-  const deleteClient = useCallback((id: string) => {
+  const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
+    // Merge with existing local state — no extra GET needed
+    setState(s => {
+      const existing = s.clients.find(c => c.id === id);
+      if (!existing) return s;
+      const merged = { ...existing, ...updates };
+      // Fire PUT in background
+      apiFetch(`/clients/${id}`, 'PUT', merged).then(row => {
+        if (row?.id) {
+          setState(s2 => ({ ...s2, clients: s2.clients.map(c => c.id === id ? mapClient(row) : c) }));
+        }
+      });
+      return { ...s, clients: s.clients.map(c => c.id === id ? merged : c) };
+    });
+  }, []);
+
+  const deleteClient = useCallback(async (id: string) => {
+    await apiFetch(`/clients/${id}`, 'DELETE');
     setState(s => ({ ...s, clients: s.clients.filter(c => c.id !== id) }));
   }, []);
 
-  const addTask = useCallback((task: Omit<Task, 'id' | 'createdAt'>) => {
-    setState(s => ({
-      ...s,
-      tasks: [...s.tasks, { ...task, id: Date.now().toString(), createdAt: new Date().toISOString() }],
-    }));
+  const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>) => {
+    const row = await apiFetch('/tasks', 'POST', task);
+    if (row?.id) {
+      setState(s => ({ ...s, tasks: [...s.tasks, mapTask(row)] }));
+    }
   }, []);
 
-  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
-    setState(s => ({
-      ...s,
-      tasks: s.tasks.map(t => t.id === id ? { ...t, ...updates } : t),
-    }));
-  }, []);
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    const existing = state.tasks.find(t => t.id === id);
+    if (!existing) return;
+    const merged = { ...existing, ...updates };
+    const row = await apiFetch(`/tasks/${id}`, 'PUT', merged);
+    if (row?.id) {
+      setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? mapTask(row) : t) }));
+    }
+  }, [state.tasks]);
 
-  const deleteTask = useCallback((id: string) => {
+  const deleteTask = useCallback(async (id: string) => {
+    await apiFetch(`/tasks/${id}`, 'DELETE');
     setState(s => ({ ...s, tasks: s.tasks.filter(t => t.id !== id) }));
   }, []);
 
-  const updateSettings = useCallback((updates: Partial<Settings>) => {
-    setState(s => ({ ...s, settings: { ...s.settings, ...updates } }));
+  const updateSettings = useCallback((_updates: Partial<Settings>) => {
+    // commission is fixed
   }, []);
 
-  return { state, addClient, updateClient, deleteClient, addTask, updateTask, deleteTask, updateSettings };
+  return { state, load, addClient, updateClient, deleteClient, addTask, updateTask, deleteTask, updateSettings };
 }

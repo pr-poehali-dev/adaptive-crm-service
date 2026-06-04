@@ -11,7 +11,7 @@ function fmt(n: number) {
 }
 
 export default function Clients() {
-  const { state, deleteClient, updateClient } = useStore();
+  const { state, deleteClient } = useStore();
   const { clients, settings } = state;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClientStatus | 'all'>('all');
@@ -21,18 +21,21 @@ export default function Clients() {
 
   const filtered = useMemo(() => {
     return clients.filter(c => {
-      const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.product.toLowerCase().includes(search.toLowerCase()) ||
-        c.phone.includes(search);
+      const matchSearch = !search
+        || c.name.toLowerCase().includes(search.toLowerCase())
+        || c.product.toLowerCase().includes(search.toLowerCase())
+        || c.phone.includes(search);
       const matchStatus = statusFilter === 'all' || c.status === statusFilter;
       const matchType = typeFilter === 'all' || c.productType === typeFilter;
       return matchSearch && matchStatus && matchType;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [clients, search, statusFilter, typeFilter]);
 
+  if (state.loading) return <Loading />;
+
   return (
-    <div className="px-4 md:px-8 py-6 max-w-5xl mx-auto animate-fade-in">
-      <div className="flex items-center justify-between mb-6">
+    <div className="px-4 md:px-8 py-6 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Клиенты</h1>
           <p className="text-muted-foreground text-sm mt-1">{filtered.length} из {clients.length}</p>
@@ -46,8 +49,8 @@ export default function Clients() {
         </button>
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-4 animate-fade-in" style={{ animationDelay: '60ms' }}>
         <div className="relative flex-1">
           <Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -78,7 +81,7 @@ export default function Clients() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden">
+      <div className="hidden md:block bg-card border border-border rounded-xl overflow-hidden animate-fade-in" style={{ animationDelay: '100ms' }}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-muted-foreground text-xs">
@@ -97,8 +100,8 @@ export default function Clients() {
                 <td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">Клиентов не найдено</td>
               </tr>
             )}
-            {filtered.map((c, i) => (
-              <tr key={c.id} className={`border-b border-border last:border-0 hover:bg-secondary/50 transition-colors ${i % 2 === 0 ? '' : 'bg-secondary/20'}`}>
+            {filtered.map((c) => (
+              <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/40 transition-colors">
                 <td className="px-4 py-3">
                   <div className="font-medium">{c.name}</div>
                   <div className="text-xs text-muted-foreground">{c.phone}</div>
@@ -108,14 +111,16 @@ export default function Clients() {
                   <div className="text-xs text-muted-foreground">{c.productType}</div>
                 </td>
                 <td className="px-4 py-3 font-mono-ibm">{fmt(c.orderAmount)}</td>
-                <td className="px-4 py-3 font-mono-ibm text-foreground/80">
+                <td className="px-4 py-3 font-mono-ibm text-muted-foreground">
                   {fmt(c.orderAmount * (settings.commissionPercent / 100))}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={c.status} />
                 </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">
-                  {c.nextActionDate ? new Date(c.nextActionDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) : '—'}
+                  {c.nextActionDate
+                    ? new Date(c.nextActionDate + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+                    : '—'}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
@@ -148,23 +153,20 @@ export default function Clients() {
         {filtered.length === 0 && (
           <div className="text-center py-10 text-muted-foreground text-sm">Клиентов не найдено</div>
         )}
-        {filtered.map(c => (
-          <MobileClientCard
-            key={c.id}
-            client={c}
-            commission={settings.commissionPercent}
-            onEdit={() => { setEditClient(c); setShowForm(true); }}
-            onDelete={() => deleteClient(c.id)}
-          />
+        {filtered.map((c, i) => (
+          <div key={c.id} className="animate-item" style={{ animationDelay: `${i * 30}ms` }}>
+            <MobileClientCard
+              client={c}
+              commission={settings.commissionPercent}
+              onEdit={() => { setEditClient(c); setShowForm(true); }}
+              onDelete={() => deleteClient(c.id)}
+            />
+          </div>
         ))}
       </div>
 
-      {/* Form Modal */}
       {showForm && (
-        <ClientForm
-          client={editClient}
-          onClose={() => setShowForm(false)}
-        />
+        <ClientForm client={editClient} onClose={() => setShowForm(false)} />
       )}
     </div>
   );
@@ -172,10 +174,10 @@ export default function Clients() {
 
 function StatusBadge({ status }: { status: ClientStatus }) {
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-      status === 'Купил' ? 'bg-foreground text-background' : 'bg-secondary text-foreground border border-border'
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+      status === 'Купил' ? 'badge-green' : 'badge-amber'
     }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'Купил' ? 'bg-background' : 'bg-foreground/40'}`} />
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
       {status}
     </span>
   );
@@ -185,7 +187,7 @@ function MobileClientCard({ client: c, commission, onEdit, onDelete }: {
   client: Client; commission: number; onEdit: () => void; onDelete: () => void;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4 card-hover">
       <div className="flex items-start justify-between mb-2">
         <div>
           <div className="font-medium text-sm">{c.name}</div>
@@ -196,7 +198,9 @@ function MobileClientCard({ client: c, commission, onEdit, onDelete }: {
       <div className="text-xs text-muted-foreground mb-2">{c.product} · {c.productType}</div>
       <div className="flex items-center justify-between">
         <div>
-          <span className="text-sm font-medium font-mono-ibm">{new Intl.NumberFormat('ru-RU').format(c.orderAmount)} ₽</span>
+          <span className="text-sm font-medium font-mono-ibm">
+            {new Intl.NumberFormat('ru-RU').format(c.orderAmount)} ₽
+          </span>
           <span className="text-xs text-muted-foreground ml-2">
             → {new Intl.NumberFormat('ru-RU').format(Math.round(c.orderAmount * commission / 100))} ₽
           </span>
@@ -208,6 +212,14 @@ function MobileClientCard({ client: c, commission, onEdit, onDelete }: {
           <button onClick={onDelete} className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-destructive"><Icon name="Trash2" size={14} /></button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Loading() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-6 h-6 border-2 border-border border-t-foreground rounded-full animate-spin" />
     </div>
   );
 }

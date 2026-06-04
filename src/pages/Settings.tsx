@@ -1,125 +1,95 @@
-import { useState } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 import { useStore } from '@/store';
 import Icon from '@/components/ui/icon';
 
 export default function Settings() {
-  const { state, updateSettings } = useStore();
-  const { settings } = state;
-  const [commission, setCommission] = useState(String(settings.commissionPercent));
-  const [userName, setUserName] = useState(settings.userName);
-  const [saved, setSaved] = useState(false);
+  const { dark, toggle } = useTheme();
+  const { state } = useStore();
+  const { clients, tasks } = state;
 
-  const handleSave = () => {
-    updateSettings({
-      commissionPercent: parseFloat(commission) || 5,
-      userName,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const { clients } = state;
   const totalClients = clients.length;
   const buyers = clients.filter(c => c.status === 'Купил').length;
-  const storageSize = (JSON.stringify(state).length / 1024).toFixed(1);
+  const totalTasks = tasks.length;
+  const doneTasks = tasks.filter(t => t.done).length;
 
   return (
-    <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto animate-fade-in">
-      <div className="mb-6">
+    <div className="px-4 md:px-8 py-6 max-w-2xl mx-auto">
+      <div className="mb-6 animate-fade-in">
         <h1 className="text-2xl font-semibold tracking-tight">Настройки</h1>
-        <p className="text-muted-foreground text-sm mt-1">Параметры вашего CRM</p>
+        <p className="text-muted-foreground text-sm mt-1">Параметры системы</p>
       </div>
 
-      <div className="space-y-4">
-        {/* Profile */}
+      <div className="space-y-3 animate-fade-in" style={{ animationDelay: '60ms' }}>
+
+        {/* Тема */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold mb-4">Профиль</h2>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Ваше имя</label>
-            <input
-              value={userName}
-              onChange={e => setUserName(e.target.value)}
-              placeholder="Имя менеджера"
-              className="w-full bg-secondary rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all"
-            />
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold">Тема оформления</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {dark ? 'Тёмная тема активна' : 'Светлая тема активна'}
+              </div>
+            </div>
+            <button
+              onClick={toggle}
+              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${
+                dark ? 'bg-foreground' : 'bg-secondary border border-border'
+              }`}
+            >
+              <span className={`absolute top-1 w-5 h-5 rounded-full transition-all duration-300 flex items-center justify-center text-[10px] ${
+                dark
+                  ? 'left-8 bg-background text-foreground'
+                  : 'left-1 bg-foreground text-background'
+              }`}>
+                {dark ? '🌙' : '☀️'}
+              </span>
+            </button>
           </div>
         </div>
-
-        {/* Commission */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold mb-1">Комиссия</h2>
-          <p className="text-xs text-muted-foreground mb-4">Процент от суммы заказа, который идёт вам как прибыль</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              value={commission}
-              onChange={e => setCommission(e.target.value)}
-              min="0"
-              max="100"
-              step="0.5"
-              className="w-32 bg-secondary rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all font-mono-ibm"
-            />
-            <span className="text-sm text-muted-foreground">% от суммы заказа</span>
-          </div>
-          <div className="mt-3 text-xs text-muted-foreground bg-secondary rounded-lg px-3 py-2">
-            Например: при заказе на 100 000 ₽ ваша прибыль составит{' '}
-            <span className="font-medium text-foreground">
-              {new Intl.NumberFormat('ru-RU').format(Math.round(100000 * (parseFloat(commission) || 0) / 100))} ₽
-            </span>
-          </div>
-        </div>
-
-        {/* Save button */}
-        <button
-          onClick={handleSave}
-          className={`w-full rounded-xl py-3 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-            saved ? 'bg-secondary text-foreground' : 'bg-foreground text-background hover:opacity-90'
-          }`}
-        >
-          {saved ? (
-            <>
-              <Icon name="Check" size={16} />
-              Сохранено!
-            </>
-          ) : 'Сохранить настройки'}
-        </button>
 
         {/* Stats */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold mb-4">Статистика базы</h2>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-xl font-semibold">{totalClients}</div>
-              <div className="text-xs text-muted-foreground">Клиентов</div>
-            </div>
-            <div>
-              <div className="text-xl font-semibold">{buyers}</div>
-              <div className="text-xs text-muted-foreground">Купили</div>
-            </div>
-            <div>
-              <div className="text-xl font-semibold">{storageSize} KB</div>
-              <div className="text-xs text-muted-foreground">Данных</div>
-            </div>
+          <h2 className="text-sm font-semibold mb-4">База данных</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <StatRow icon="Users" label="Клиентов всего" value={totalClients} />
+            <StatRow icon="ShoppingBag" label="Совершили покупку" value={buyers} />
+            <StatRow icon="CheckSquare" label="Задач всего" value={totalTasks} />
+            <StatRow icon="CheckCircle2" label="Задач выполнено" value={doneTasks} />
           </div>
         </div>
 
-        {/* Data */}
+        {/* Info */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold mb-1">Данные</h2>
-          <p className="text-xs text-muted-foreground mb-4">Все данные хранятся локально в браузере</p>
-          <button
-            onClick={() => {
-              if (confirm('Вы уверены? Все данные будут удалены без возможности восстановления.')) {
-                localStorage.clear();
-                window.location.reload();
-              }
-            }}
-            className="text-xs text-destructive hover:underline flex items-center gap-1.5"
-          >
-            <Icon name="Trash2" size={13} />
-            Очистить все данные
-          </button>
+          <h2 className="text-sm font-semibold mb-1">О системе</h2>
+          <p className="text-xs text-muted-foreground mb-3">Данные хранятся в облачной базе данных. Доступны с любого устройства.</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Соединение с БД активно
+          </div>
         </div>
+
+        {/* Commission note */}
+        <div className="bg-secondary/50 border border-border rounded-xl p-4">
+          <div className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Icon name="Info" size={13} className="mt-0.5 shrink-0" />
+            <span>Комиссия зафиксирована на уровне <strong className="text-foreground">5%</strong> от суммы заказа.</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function StatRow({ icon, label, value }: { icon: string; label: string; value: number }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 bg-secondary rounded-lg flex items-center justify-center shrink-0">
+        <Icon name={icon} size={14} className="text-muted-foreground" />
+      </div>
+      <div>
+        <div className="text-base font-semibold leading-tight">{value}</div>
+        <div className="text-[11px] text-muted-foreground">{label}</div>
       </div>
     </div>
   );

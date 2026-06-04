@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "@/components/Layout";
@@ -9,8 +10,20 @@ import Analytics from "@/pages/Analytics";
 import Settings from "@/pages/Settings";
 import NotFound from "./pages/NotFound";
 
+function ThemeInit() {
+  useEffect(() => {
+    const saved = localStorage.getItem('dacha_theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (saved === 'dark' || (!saved && prefersDark)) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+  return null;
+}
+
 const App = () => (
   <TooltipProvider>
+    <ThemeInit />
     <BrowserRouter>
       <Layout>
         <Routes>

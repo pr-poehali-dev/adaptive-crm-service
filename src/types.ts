@@ -30,9 +30,3 @@ export interface Settings {
   commissionPercent: number;
   userName: string;
 }
-
-export interface AppState {
-  clients: Client[];
-  tasks: Task[];
-  settings: Settings;
-}

@@ -56,7 +56,11 @@ export default function Tasks() {
           <select value={newClientId} onChange={e => setNewClientId(e.target.value)}
             className="flex-1 min-w-0 bg-secondary rounded-xl px-3 py-2 text-sm outline-none text-muted-foreground">
             <option value="">— Клиент</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name} — {new Intl.NumberFormat('ru-RU').format(c.orderAmount)} ₽
+              </option>
+            ))}
           </select>
           <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
             className="bg-secondary rounded-xl px-3 py-2 text-sm outline-none w-36 shrink-0" />

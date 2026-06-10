@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client, Task, Settings } from './types';
 
 const API = 'https://functions.poehali.dev/9b14d63d-0742-4f86-8fbb-4873aad98055';
@@ -39,7 +39,6 @@ function mapTask(r: Record<string, unknown>): Task {
   };
 }
 
-// Все вызовы идут на корень функции, маршрут передаётся через ?route=
 async function apiFetch(route: string, method = 'GET', body?: unknown) {
   const url = `${API}/?route=${encodeURIComponent(route)}`;
   try {
@@ -62,6 +61,9 @@ export function useStore() {
   const [state, setState] = useState<AppState>({
     clients: [], tasks: [], settings: defaultSettings, loading: true,
   });
+  // Ref для синхронного доступа к актуальным данным внутри коллбэков
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const load = useCallback(async () => {
     setState(s => ({ ...s, loading: true }));
@@ -89,20 +91,23 @@ export function useStore() {
   }, []);
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
-    setState(s => {
-      const existing = s.clients.find(c => c.id === id);
-      if (!existing) return s;
-      const merged = { ...existing, ...updates };
-      apiFetch(`/clients/${id}`, 'PUT', merged).then(row => {
-        if (row?.id) {
-          setState(s2 => ({
-            ...s2,
-            clients: s2.clients.map(c => c.id === id ? mapClient(row) : c),
-          }));
-        }
-      });
-      return { ...s, clients: s.clients.map(c => c.id === id ? merged : c) };
-    });
+    // 1. Немедленно обновляем UI
+    const existing = stateRef.current.clients.find(c => c.id === id);
+    if (!existing) return;
+    const optimistic = { ...existing, ...updates };
+    setState(s => ({
+      ...s,
+      clients: s.clients.map(c => c.id === id ? optimistic : c),
+    }));
+    // 2. Отправляем на сервер
+    const row = await apiFetch(`/clients/${id}`, 'PUT', optimistic);
+    if (row?.id) {
+      // Обновляем данными с сервера (там актуальный updated_at и т.д.)
+      setState(s => ({
+        ...s,
+        clients: s.clients.map(c => c.id === id ? mapClient(row) : c),
+      }));
+    }
   }, []);
 
   const deleteClient = useCallback(async (id: string) => {
@@ -119,20 +124,20 @@ export function useStore() {
   }, []);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
-    setState(s => {
-      const existing = s.tasks.find(t => t.id === id);
-      if (!existing) return s;
-      const merged = { ...existing, ...updates };
-      apiFetch(`/tasks/${id}`, 'PUT', merged).then(row => {
-        if (row?.id) {
-          setState(s2 => ({
-            ...s2,
-            tasks: s2.tasks.map(t => t.id === id ? mapTask(row) : t),
-          }));
-        }
-      });
-      return { ...s, tasks: s.tasks.map(t => t.id === id ? merged : t) };
-    });
+    const existing = stateRef.current.tasks.find(t => t.id === id);
+    if (!existing) return;
+    const optimistic = { ...existing, ...updates };
+    setState(s => ({
+      ...s,
+      tasks: s.tasks.map(t => t.id === id ? optimistic : t),
+    }));
+    const row = await apiFetch(`/tasks/${id}`, 'PUT', optimistic);
+    if (row?.id) {
+      setState(s => ({
+        ...s,
+        tasks: s.tasks.map(t => t.id === id ? mapTask(row) : t),
+      }));
+    }
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {

@@ -63,6 +63,7 @@ export default function Clients() {
           className="bg-card border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-foreground/20 transition-all shrink-0">
           <option value="all">Все</option>
           <option value="Заинтересован">Интерес</option>
+          <option value="Составили ТЗ">Составили ТЗ</option>
           <option value="Купил">Купил</option>
         </select>
       </div>
@@ -166,8 +167,9 @@ function ClientCard({ client: c, commission, index, onEdit, onDelete }: {
 }
 
 function StatusBadge({ status }: { status: ClientStatus }) {
+  const cls = status === 'Купил' ? 'badge-green' : status === 'Составили ТЗ' ? 'badge-blue' : 'badge-amber';
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${status === 'Купил' ? 'badge-green' : 'badge-amber'}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${cls}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />{status}
     </span>
   );

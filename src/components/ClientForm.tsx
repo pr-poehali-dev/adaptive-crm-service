@@ -4,7 +4,7 @@ import { Client, ClientStatus, ProductType } from '@/types';
 import Icon from '@/components/ui/icon';
 
 const PRODUCT_TYPES: ProductType[] = ['Бытовка', 'Хозблок', 'Баня', 'Дачный домик', 'Другое'];
-const STATUSES: ClientStatus[] = ['Заинтересован', 'Купил'];
+const STATUSES: ClientStatus[] = ['Заинтересован', 'Составили ТЗ', 'Купил'];
 
 interface Props { client?: Client | null; onClose: () => void; }
 

@@ -39,12 +39,15 @@ export default function Dashboard() {
   const m = useMemo(() => {
     const b = clients.filter(c => c.status === 'Купил');
     const i = clients.filter(c => c.status === 'Заинтересован');
+    const tz = clients.filter(c => c.status === 'Составили ТЗ');
+    const notBuyers = [...i, ...tz];
     const t = b.reduce((s, c) => s + c.orderAmount, 0);
     const cp = settings.commissionPercent / 100;
-    return { turnover: t, earned: t * cp, potential: i.reduce((s, c) => s + c.orderAmount * cp, 0), conversion: clients.length > 0 ? Math.round(b.length / clients.length * 100) : 0, buyersCount: b.length, intCount: i.length };
+    return { turnover: t, earned: t * cp, potential: notBuyers.reduce((s, c) => s + c.orderAmount * cp, 0), conversion: clients.length > 0 ? Math.round(b.length / clients.length * 100) : 0, buyersCount: b.length, intCount: i.length, tzCount: tz.length };
   }, [clients, settings]);
 
   const interested = clients.filter(c => c.status === 'Заинтересован');
+  const tz = clients.filter(c => c.status === 'Составили ТЗ');
   const buyers = clients.filter(c => c.status === 'Купил');
   const move = (id: string, status: Client['status']) => { updateClient(id, { status }); setDragging(null); setDragOver(null); };
 
@@ -98,8 +101,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 animate-fade-in" style={{ animationDelay: '110ms' }}>
-        {[{ label: 'Заинтересованы', value: m.intCount }, { label: 'Купили', value: m.buyersCount }, { label: 'Всего', value: clients.length }].map(item => (
+      <div className="grid grid-cols-4 gap-2 animate-fade-in" style={{ animationDelay: '110ms' }}>
+        {[
+          { label: 'Интерес', value: m.intCount },
+          { label: 'Сост. ТЗ', value: m.tzCount },
+          { label: 'Купили', value: m.buyersCount },
+          { label: 'Всего', value: clients.length },
+        ].map(item => (
           <div key={item.label} className="bg-card border border-border rounded-xl p-3 text-center">
             <div className="text-2xl font-bold">{item.value}</div>
             <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{item.label}</div>
@@ -109,7 +117,7 @@ export default function Dashboard() {
 
       <div className="animate-fade-in" style={{ animationDelay: '140ms' }}>
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Канбан</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <KanbanCol title="Заинтересован" count={interested.length}
             summary={`Потенциал: ${fmtMoney(interested.reduce((s, c) => s + c.orderAmount * settings.commissionPercent / 100, 0))}`}
             colorClass="bg-amber-50 dark:bg-amber-900/10" titleClass="text-amber-800 dark:text-amber-400"
@@ -118,8 +126,19 @@ export default function Dashboard() {
             onDrop={() => { if (dragging) move(dragging, 'Заинтересован'); }}
             onDragOver={e => { e.preventDefault(); setDragOver('Заинтересован'); }}
             onDragLeave={() => setDragOver(null)}>
-            {interested.map((c, i) => <KCard key={c.id} client={c} commission={settings.commissionPercent} delay={i * 20} onEdit={() => setEditClient(c)} onMove={() => move(c.id, 'Купил')} moveLabel="→ Купил" onDragStart={() => setDragging(c.id)} />)}
+            {interested.map((c, i) => <KCard key={c.id} client={c} commission={settings.commissionPercent} delay={i * 20} onEdit={() => setEditClient(c)} onMove={() => move(c.id, 'Составили ТЗ')} moveLabel="→ ТЗ" onDragStart={() => setDragging(c.id)} />)}
             {!interested.length && <EmptyCol text="Нет заинтересованных" />}
+          </KanbanCol>
+          <KanbanCol title="Составили ТЗ" count={tz.length}
+            summary={`Потенциал: ${fmtMoney(tz.reduce((s, c) => s + c.orderAmount * settings.commissionPercent / 100, 0))}`}
+            colorClass="bg-blue-50 dark:bg-blue-900/10" titleClass="text-blue-800 dark:text-blue-400"
+            badgeClass="bg-blue-200/80 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400"
+            isDragOver={dragOver === 'Составили ТЗ'}
+            onDrop={() => { if (dragging) move(dragging, 'Составили ТЗ'); }}
+            onDragOver={e => { e.preventDefault(); setDragOver('Составили ТЗ'); }}
+            onDragLeave={() => setDragOver(null)}>
+            {tz.map((c, i) => <KCard key={c.id} client={c} commission={settings.commissionPercent} delay={i * 20} onEdit={() => setEditClient(c)} onMove={() => move(c.id, 'Купил')} moveLabel="→ Купил" onDragStart={() => setDragging(c.id)} />)}
+            {!tz.length && <EmptyCol text="Нет с ТЗ" />}
           </KanbanCol>
           <KanbanCol title="Купил" count={buyers.length}
             summary={`Заработано: ${fmtMoney(buyers.reduce((s, c) => s + c.orderAmount * settings.commissionPercent / 100, 0))}`}
@@ -129,7 +148,7 @@ export default function Dashboard() {
             onDrop={() => { if (dragging) move(dragging, 'Купил'); }}
             onDragOver={e => { e.preventDefault(); setDragOver('Купил'); }}
             onDragLeave={() => setDragOver(null)}>
-            {buyers.map((c, i) => <KCard key={c.id} client={c} commission={settings.commissionPercent} delay={i * 20} onEdit={() => setEditClient(c)} onMove={() => move(c.id, 'Заинтересован')} moveLabel="← Назад" onDragStart={() => setDragging(c.id)} />)}
+            {buyers.map((c, i) => <KCard key={c.id} client={c} commission={settings.commissionPercent} delay={i * 20} onEdit={() => setEditClient(c)} onMove={() => move(c.id, 'Составили ТЗ')} moveLabel="← ТЗ" onDragStart={() => setDragging(c.id)} />)}
             {!buyers.length && <EmptyCol text="Нет купивших" />}
           </KanbanCol>
         </div>

@@ -1,6 +1,6 @@
 export type ProductType = 'Бытовка' | 'Хозблок' | 'Баня' | 'Дачный домик' | 'Другое';
 
-export type ClientStatus = 'Заинтересован' | 'Купил';
+export type ClientStatus = 'Заинтересован' | 'Составили ТЗ' | 'Купил';
 
 export interface Client {
   id: string;

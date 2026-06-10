@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useContext, createContext } from 'react';
 import { Client, Task, Settings } from './types';
 
 const API = 'https://functions.poehali.dev/9b14d63d-0742-4f86-8fbb-4873aad98055';
@@ -9,6 +9,18 @@ export interface AppState {
   tasks: Task[];
   settings: Settings;
   loading: boolean;
+}
+
+export interface StoreActions {
+  state: AppState;
+  load: () => Promise<void>;
+  addClient: (c: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateClient: (id: string, updates: Partial<Client>) => Promise<void>;
+  deleteClient: (id: string) => Promise<void>;
+  addTask: (t: Omit<Task, 'id' | 'createdAt'>) => Promise<void>;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  updateSettings: (u: Partial<Settings>) => void;
 }
 
 function mapClient(r: Record<string, unknown>): Client {
@@ -57,11 +69,20 @@ async function apiFetch(route: string, method = 'GET', body?: unknown) {
 
 const defaultSettings: Settings = { commissionPercent: COMMISSION, userName: '' };
 
-export function useStore() {
+// ── Context ──────────────────────────────────────────────────────────────────
+export const StoreContext = createContext<StoreActions | null>(null);
+
+export function useStore(): StoreActions {
+  const ctx = useContext(StoreContext);
+  if (!ctx) throw new Error('useStore must be used within StoreProvider');
+  return ctx;
+}
+
+// ── Provider (один на всё приложение) ────────────────────────────────────────
+export function useCreateStore(): StoreActions {
   const [state, setState] = useState<AppState>({
     clients: [], tasks: [], settings: defaultSettings, loading: true,
   });
-  // Ref для синхронного доступа к актуальным данным внутри коллбэков
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -82,7 +103,6 @@ export function useStore() {
 
   useEffect(() => { load(); }, [load]);
 
-  // --- Clients ---
   const addClient = useCallback(async (client: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) => {
     const row = await apiFetch('/clients', 'POST', client);
     if (row?.id) {
@@ -91,22 +111,15 @@ export function useStore() {
   }, []);
 
   const updateClient = useCallback(async (id: string, updates: Partial<Client>) => {
-    // 1. Немедленно обновляем UI
     const existing = stateRef.current.clients.find(c => c.id === id);
     if (!existing) return;
     const optimistic = { ...existing, ...updates };
-    setState(s => ({
-      ...s,
-      clients: s.clients.map(c => c.id === id ? optimistic : c),
-    }));
-    // 2. Отправляем на сервер
+    // Немедленно обновляем UI
+    setState(s => ({ ...s, clients: s.clients.map(c => c.id === id ? optimistic : c) }));
+    // Отправляем на сервер
     const row = await apiFetch(`/clients/${id}`, 'PUT', optimistic);
     if (row?.id) {
-      // Обновляем данными с сервера (там актуальный updated_at и т.д.)
-      setState(s => ({
-        ...s,
-        clients: s.clients.map(c => c.id === id ? mapClient(row) : c),
-      }));
+      setState(s => ({ ...s, clients: s.clients.map(c => c.id === id ? mapClient(row) : c) }));
     }
   }, []);
 
@@ -115,7 +128,6 @@ export function useStore() {
     await apiFetch(`/clients/${id}`, 'DELETE');
   }, []);
 
-  // --- Tasks ---
   const addTask = useCallback(async (task: Omit<Task, 'id' | 'createdAt'>) => {
     const row = await apiFetch('/tasks', 'POST', task);
     if (row?.id) {
@@ -127,16 +139,10 @@ export function useStore() {
     const existing = stateRef.current.tasks.find(t => t.id === id);
     if (!existing) return;
     const optimistic = { ...existing, ...updates };
-    setState(s => ({
-      ...s,
-      tasks: s.tasks.map(t => t.id === id ? optimistic : t),
-    }));
+    setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? optimistic : t) }));
     const row = await apiFetch(`/tasks/${id}`, 'PUT', optimistic);
     if (row?.id) {
-      setState(s => ({
-        ...s,
-        tasks: s.tasks.map(t => t.id === id ? mapTask(row) : t),
-      }));
+      setState(s => ({ ...s, tasks: s.tasks.map(t => t.id === id ? mapTask(row) : t) }));
     }
   }, []);
 
@@ -145,9 +151,7 @@ export function useStore() {
     await apiFetch(`/tasks/${id}`, 'DELETE');
   }, []);
 
-  const updateSettings = useCallback((_updates: Partial<Settings>) => {
-    // commission is fixed at 5%
-  }, []);
+  const updateSettings = useCallback((_updates: Partial<Settings>) => {}, []);
 
   return { state, load, addClient, updateClient, deleteClient, addTask, updateTask, deleteTask, updateSettings };
 }
